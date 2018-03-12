@@ -1,0 +1,62 @@
+@green: #0f8896;
+@grey: #818489;
+
+.index {
+	max-width: 800px;
+	margin: 50px auto;
+
+	.brand {
+		display: block;
+		width: 500px;
+		margin: 60px auto;
+	}
+
+	.level {
+		padding-left: 20px;
+		margin-bottom: 5px;
+		border-left: 1px dashed @grey;
+	}
+
+	.level-1 {
+		position: relative;
+	}
+
+	.info {
+		position: absolute;
+		top: 0px;
+		right: 0px;
+	}
+
+	.title {
+		margin: 5px 0px;
+
+		&.bold {
+			font-weight: bold;
+		}
+
+		&.italic {
+			font-weight: italic;
+		}
+	}
+
+	.x-refs {
+		padding-top: 10px;
+		padding-left: 10px;
+
+		ul {
+			margin-top: 0px;
+
+			li {
+				margin-bottom: 10px;
+			}
+		}
+	}
+
+	.locators {
+		padding-left: 10px;
+
+		.locator {
+			padding-left: 10px;
+		}
+	}
+}
