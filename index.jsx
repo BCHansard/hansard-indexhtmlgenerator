@@ -10,27 +10,30 @@ same delays on all ctx menus.
 window.tk = toolkit.create({debug: true});
 
 let templates = {
-	xrefItem: (item) => {
+	xref: (item) => {
 		if (item.target){
 			return <span>
 				<a href={ '#' + item.target }>{ item.label }</a>
 				{ () => item.relation ? <em> { item.relation }</em> : '' }
-				{ () => item.related ? <span> { templates.xrefItem(item.related) }</span> : '' }
+				{ () => item.related ? <span> { templates.xref(item.related) }</span> : '' }
 			</span>
 		}
 		return <em>{ item.label }</em>
 	},
-	xref: (xref) =>
+	xrefs: (xref) =>
 		<div class="x-ref">
 			<em>{ xref.prefix }</em>
 			{ tk.comp(xref.content, (item) =>
-				<span class="item"> { templates.xrefItem(item) }</span>
+				<span class="item"> { templates.xref(item) }</span>
 			)}
 		</div>,
 	locator: (locator) =>
 		<span class="locator">{ locator.target }</span>,
-	_level: (level) =>
-		<div class={ 
+	level: (level) => {
+		if (level.filtered){
+			return;
+		}
+		return <div class={ 
 				"level level-" + level.level 
 				+ (level.respondents ? ' respondents' : '')  
 				+ ((
@@ -69,7 +72,7 @@ let templates = {
 			{ () => {
 				if (level.xrefs.length) {
 					return <div class="x-refs">
-						{ tk.comp(level.xrefs, templates.xref) }
+						{ tk.comp(level.xrefs, templates.xrefs) }
 					</div>
 				}
 			}}
@@ -88,14 +91,13 @@ let templates = {
 					</div>
 				}
 			}}
-		</div>,
-	level: (level) => {
-		if (!level.filtered){
-			return templates._level(level);
-		}
+		</div>
 	},
-	_letter: (letter) =>
-		<div class="letter" data-letter={ letter.letter }>
+	letter: (letter) => {
+		if (letter.filtered){
+			return;
+		}
+		return <div class="letter" data-letter={ letter.letter }>
 			<h1>{ letter.letter }</h1>
 			<div class="content">
 				{ tk.comp(letter.content, (l1) => {
@@ -104,25 +106,18 @@ let templates = {
 					}
 				})}
 			</div>
-		</div>,
-	letter: (letter) => {
-		if (letter.filtered){
-			return <div class="not-present"></div>
-		}
-		return templates._letter(letter);
+		</div>
 	},
 	content: (letters) =>
 		<article class="content">
 			{ tk.comp(letters, templates.letter) }
 		</article>,
-	headerLetter: (letter) =>
-		<div class="letter">{ letter.letter }</div>,
 	root: (letters) =>
 		<div class="index">
 			<header class="nav-header" title="Navigation">
 				<i class="fa fa-compass icon" title="Navigation"></i>
 				<div class="content">
-					{ tk.comp(letters, templates.headerLetter) }
+					{ tk.comp(letters, (letter) => <div class="letter">{ letter.letter }</div>) }
 				</div>
 			</header>
 			<header class="search-header" title="Search">
@@ -138,8 +133,8 @@ let templates = {
 				<i class="fa fa-thumbtack icon"></i>
 				<div class="content">
 					<div class="help">
-						<h4>You have no pins!</h4>
-						<p>Buy some here: google.com</p>
+						<h4>You haven't pinned anything yet</h4>
+						<p>When you do, it will show up here.</p>
 					</div>
 					<div class="list"></div>
 				</div>
@@ -171,13 +166,22 @@ let templates = {
 		</div>,
 	searchTools: (resultsCount) =>
 		<div class="search-tools">
-			<span class="results-i"></span><span> of </span><span class="results-count">{ resultsCount }</span> 
-			<div class="prev">
-				<i class="fa fa-chevron-up"></i>
-			</div>
-			<div class="next">
-				<i class="fa fa-chevron-down"></i>
-			</div>
+			{ () => {
+				if (resultsCount > 0) {
+					return <aside>
+						<span class="results-i"></span><span> of </span><span class="results-count">{ resultsCount }</span> 
+						<div class="prev">
+							<i class="fa fa-chevron-up"></i>
+						</div>
+						<div class="next">
+							<i class="fa fa-chevron-down"></i>
+						</div>
+					</aside>
+				}
+				else {
+					return <aside><span>No Results</span></aside>
+				}
+			}}
 		</div>
 }
 
@@ -220,7 +224,9 @@ class IndexController {
 						})
 					.back();
 				this.pinMap[item.id] = true;
+				this.savePins();
 				tk('.pinned-header .list').append(rendered);
+				tk('.pinned-header').classify('empty', false);
 			});
 	}
 
@@ -228,6 +234,12 @@ class IndexController {
 		window.scrollTo(0, target.offset().y - this.highWater);
 		target.children('.title, h1').first()
 			.classify('search-highlight', true, 2000);
+	}
+
+	savePins() {
+		let ids = [];
+		tk.iter(this.pinMap, (k) => { ids.push(k); });
+		tk.log(document.cookie = 'hIndexPins=' + ids.join('&') + ';');
 	}
 
 	//	Initialization.
@@ -538,4 +550,40 @@ class IndexController {
 	}
 }
 
-let controller = new IndexController(data);
+class Header {
+	constructor(template){
+		this.template = template;
+	}
+
+	create(){
+		let rendered = tk.template(this.template).render();
+		rendered.on({
+			mouseover: (el) => { el.classify('open'); },
+			mouseleave: (el) => { el.classify('open', false); }
+		});
+		this.bindings(rendered);
+		return rendered;
+	}
+
+	bindings(el){}
+}
+
+class SearchHeader {
+	constructor() {
+		super(() => 
+			<header class="search" title="Search">
+				<div class="insider back"></div>
+				<i class="fa fa-search icon" title="Search"></i>
+				<div class="content">
+					<i class="fa fa-times clear"></i>
+					<input name="term" type="text" placeholder="Enter a term..."/>
+				</div>
+				<div class="insider front"></div>
+			</header>
+		);
+	}
+}
+
+let controller = new IndexController(data, [
+	new SearchHeader()
+]);
