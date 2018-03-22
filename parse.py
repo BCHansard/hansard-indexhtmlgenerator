@@ -38,6 +38,7 @@ class LevelGroup:
 		self.level = level
 		self.heading = heading
 		self.heading_tag = heading_tag
+		self.respondents = False
 		self.xrefs = []
 		self.content = []
 		self.locators = []
@@ -55,7 +56,8 @@ class LevelGroup:
 			'heading_type': self.heading_tag,
 			'xrefs': [x.serialize() for x in self.xrefs],
 			'content': [c.serialize() for c in self.content],
-			'locators': [l.serialize() for l in self.locators]
+			'locators': [l.serialize() for l in self.locators],
+			'respondents': self.respondents
 		}
 
 	def __repr__(self):
@@ -84,8 +86,14 @@ class LevelGroup:
 class XRef:
 	_created = []
 
-	def __init__(self, label):
+	def __init__(self, label, target, related=None, relation=None):
 		self.label = label
+		self.target = target
+		#
+		#		A <relation=under> <association=B>
+		#
+		self.related = related
+		self.relation = relation
 		self.to_id = None
 
 		self.__class__._created.append(self)
@@ -94,11 +102,13 @@ class XRef:
 	def resolve_all(cls):
 		print(f'Resolving {len(cls._created)} x-refs against {len(LevelGroup._created)} potential targets')
 
+		ordered_targets = sorted(LevelGroup._created, key=lambda o: o.level)
+
 		missed = 0
 		for xref in cls._created:
 			found = None
-			for level in LevelGroup._created:
-				if level.heading == xref.label:
+			for level in ordered_targets:
+				if level.heading == xref.target:
 					found = level
 					break
 			if not found:
@@ -110,10 +120,17 @@ class XRef:
 		print(f'Missed {missed}/{len(cls._created)}')
 
 	def serialize(self):
-		return {
+		ser = {
 			'label': self.label,
-			'target': self.to_id
+			'target': self.to_id,
 		}
+		if self.relation is not None:
+			ser['relation'] = self.relation
+
+			if self.related is not None:
+				ser['related'] = self.related.serialize()
+		
+		return ser
 
 	def __repr__(self):
 		return f'XRef -> {self.label} (locked on {self.to_id})\n'
@@ -149,14 +166,22 @@ class Locator:
 def parse(filename):
 	root = etree.parse(filename)
 
-	def parse_level(level_node, depth):
+	def parse_level(level_node, depth, parent_level=None):
 		#	Find heading.
 		pretext = pretty_text(level_node.text)
+		next_level = f'level{depth + 1}'
 		if len(pretext) == 0:
 			heading_tag = level_node.getchildren()[0]
 			heading, tag = pretty_text(heading_tag.text), heading_tag.tag
 		else:
 			heading, tag = pretext, 'text'
+
+		name_check = re.match('^\((.+)\)$', heading)
+		was_respondent = name_check is not None
+		if was_respondent:
+			parent_level.respondents = True
+			heading = name_check.group(1)
+			tag = 'member'
 
 		#	Create level.
 		level = LevelGroup(depth, heading, tag)
@@ -169,7 +194,28 @@ def parse(filename):
 			xrefl = XRefList(pretty_text(cur.text))
 			cur = cur.getnext()
 			while cur is not None and cur.tag == 'xref':
-				xrefl.content.append(XRef(pretty_text(' '.join(cur.itertext()))))
+				label = pretty_text(' '.join(cur.itertext()))
+				related, relation = None, None
+
+				italic = cur.xpath('italic')
+				if len(list(italic)) > 0:
+					target = pretty_text(cur.text)
+					if len(target.strip()) > 0:
+						label = target
+					relation = pretty_text(italic[-1].text)
+					
+					bold = cur.xpath('bold')
+					if len(list(bold)) > 0:
+						related = pretty_text(bold[-1].text)
+				else:
+					target = label
+				if len(target.strip()) == 0:
+					target = None
+				
+				if related is not None:
+					related = XRef(related, related)
+
+				xrefl.content.append(XRef(label, target, related, relation))
 				cur = cur.getnext()
 			return xrefl, cur
 
@@ -194,9 +240,8 @@ def parse(filename):
 			for locator_node in direct_locator_kids:
 				level.locators.append(Locator(locator_node.text))
 
-		next_level = f'level{depth + 1}'
 		for next_level_node in [t for t in level_node.getchildren() if t.tag == next_level]:
-			level.content.append(parse_level(next_level_node, depth + 1))
+			level.content.append(parse_level(next_level_node, depth + 1, level))
 
 		return level
 

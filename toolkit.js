@@ -116,10 +116,13 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
       key: 'inspect',
       value: function inspect(check) {
         var f, j, len, ref;
-        ref = this.inspectionFunctions;
-        for (j = 0, len = ref.length; j < len; j++) {
-          f = ref[j];
-          f(check);
+        if (this.inspectionFunctions.length > 0) {
+          check = check.extend(check.children());
+          ref = this.inspectionFunctions;
+          for (j = 0, len = ref.length; j < len; j++) {
+            f = ref[j];
+            f(check);
+          }
         }
         return this;
       }
@@ -283,6 +286,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
     var ToolkitSelection = function () {
       _createClass(ToolkitSelection, null, [{
         key: 'clean',
+
+        //	TODO: Clean efficiency.
         value: function clean(set) {
           var clean, item, j, len;
           if (set instanceof Node) {
@@ -371,14 +376,14 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
           var set;
           switch (typeof reducer === 'undefined' ? 'undefined' : _typeof(reducer)) {
             case 'string':
-              set = this.compr(function (el) {
+              set = this.comp(function (el) {
                 if (el.is(reducer)) {
                   return el;
                 }
               });
               break;
             case 'function':
-              set = this.compr(reducer);
+              set = this.comp(reducer);
               break;
             default:
               throw 'Illegal reducer';
@@ -506,8 +511,8 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
           return this;
         }
       }, {
-        key: 'compr',
-        value: function compr(callback) {
+        key: 'comp',
+        value: function comp(callback) {
           var el, i, j, len, ref, result, value;
           result = [];
           ref = this.set;
@@ -759,7 +764,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
             if (flag === 'toggle') {
               //	Special second parameter case.
               flag = function flag(el, i) {
-                return !e.is(selector);
+                return indexOf.call(el.classes(), name) < 0;
               };
             }
             return _this4.iter(function (el, i) {
@@ -814,11 +819,10 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
       }, {
         key: 'append',
         value: function append(children) {
-          var child, inspected, j, len, ref;
+          var child, j, len, ref;
           children = new ToolkitSelection(children, this);
           children.remove();
-          inspected = children.extend(children.children());
-          ToolkitSelection.tk.guts.inspect(inspected);
+          ToolkitSelection.tk.guts.inspect(children);
           ref = children.set;
           for (j = 0, len = ref.length; j < len; j++) {
             child = ref[j];
@@ -829,11 +833,10 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
       }, {
         key: 'prepend',
         value: function prepend(children) {
-          var child, inspected, j, ref;
+          var child, j, ref;
           children = new ToolkitSelection(children, this);
           children.remove();
-          inspected = children.extend(children.children());
-          ToolkitSelection.tk.guts.inspect(inspected);
+          ToolkitSelection.tk.guts.inspect(children);
           ref = children.set;
           for (j = ref.length - 1; j >= 0; j += -1) {
             child = ref[j];
@@ -889,7 +892,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
             if (this.empty) {
               return new ToolkitSelection([]);
             }
-            return new ToolkitSelection(this.set[0].prevSibling, this);
+            return new ToolkitSelection(this.set[0].previousSibling, this);
           } else {
             if (!node instanceof ToolkitSelection) {
               node = tk(node);
@@ -952,7 +955,7 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
           el = this.set[0];
           while (el) {
             o.x += el.offsetLeft;
-            o.y += el.offsetRight;
+            o.y += el.offsetTop;
             if (toParent) {
               break;
             }
@@ -1288,13 +1291,28 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
         this._data = _data2;
         return this;
       }
+    }, {
+      key: '_safeAppend',
+      value: function _safeAppend(target, toAppend) {
+        var item, j, len, results;
+        if (toAppend instanceof Array) {
+          results = [];
+          for (j = 0, len = toAppend.length; j < len; j++) {
+            item = toAppend[j];
+            results.push(target.appendChild(item));
+          }
+          return results;
+        } else {
+          return target.appendChild(toAppend);
+        }
+      }
 
       //	Realize a virtual node (as a DOM node).
 
     }, {
       key: '_realize',
       value: function _realize(virtual) {
-        var child, item, j, len, ref, result;
+        var child, item, j, len, name, ref, ref1, result, value;
         if (!virtual) {
           return document.createTextNode('');
         }
@@ -1313,11 +1331,17 @@ function _classCallCheck(instance, Constructor) { if (!(instance instanceof Cons
             return results;
           }.call(this);
         } else {
-          result = this.tk.tag(virtual.tag).attr(virtual.attributes);
-          ref = virtual.children;
-          for (j = 0, len = ref.length; j < len; j++) {
-            child = ref[j];
-            result.append(this._realize(child));
+          result = document.createElement(virtual.tag);
+          virtual.result = result;
+          ref = virtual.attributes;
+          for (name in ref) {
+            value = ref[name];
+            result.setAttribute(name, value);
+          }
+          ref1 = virtual.children;
+          for (j = 0, len = ref1.length; j < len; j++) {
+            child = ref1[j];
+            this._safeAppend(result, this._realize(child));
           }
         }
         return result;
