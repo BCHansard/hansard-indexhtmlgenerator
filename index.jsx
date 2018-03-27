@@ -6,7 +6,6 @@ same delays on all ctx menus.
 
 */
 
-
 window.tk = toolkit.create({debug: true});
 
 let templates = {
@@ -550,6 +549,7 @@ class IndexController {
 	}
 }
 
+/*
 class Header {
 	constructor(template){
 		this.template = template;
@@ -582,7 +582,12 @@ class SearchHeader {
 			</header>
 		);
 	}
+
+	bindings(el) {
+		
+	}
 }
+*/
 
 let controller = new IndexController(data, [
 	new SearchHeader()
