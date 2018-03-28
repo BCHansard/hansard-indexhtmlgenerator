@@ -27,7 +27,7 @@ let templates = {
 			)}
 		</div>,
 	locator: (locator) =>
-		<span class="locator">{ locator.target }</span>,
+		<a class="locator" href={ locator.url }>{ locator.target }</a>,
 	level: (level) => {
 		if (level.filtered){
 			return;
@@ -505,7 +505,7 @@ class IndexController {
 			this.contentNoFilter = content;
 		}
 		this.time('Binding', () => {
-			tk('a').off('click').on('click', (el, event) => {
+			tk('a:not(.locator)').off('click').on('click', (el, event) => {
 				event.preventDefault();
 				this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 			});
@@ -589,6 +589,4 @@ class SearchHeader {
 }
 */
 
-let controller = new IndexController(data, [
-	new SearchHeader()
-]);
+let controller = new IndexController(data);

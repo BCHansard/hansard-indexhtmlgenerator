@@ -1,6 +1,6 @@
 #	coding utf-8
 '''
-Index parser
+Index parser.
 '''
 
 import re
@@ -9,6 +9,29 @@ import uuid
 import json
 
 from lxml import etree
+
+def load_pagemap():
+	with open('PageMap2017HOUSE.txt') as f:
+		data = f.read()
+
+	ranges = []
+	path_defn = re.search(r'PATH=(.*)', data)
+	path = path_defn.group(1)
+
+	for match in re.finditer(r'([0-9]+)-([0-9]+)\s(.*)', data):
+		ranges.append({
+			'bottom': int(match.group(1)),
+			'top': int(match.group(2)),
+			'path': match.group(3).strip()
+		})
+	return ranges, path
+
+_page_ranges, _path = load_pagemap()
+def get_path_for_page(page_no):
+	for r in _page_ranges:
+		if r['bottom'] <= page_no and r['top'] >= page_no:
+			return '%s%s#%s'%(_path, r['path'], page_no)
+	return None
 
 def pretty_text(text):
 	if text is None:
@@ -157,7 +180,8 @@ class Locator:
 
 	def serialize(self):
 		return {
-			'target': self.target
+			'target': self.target,
+			'url': get_path_for_page(int(self.target.split('-')[0]))
 		}
 
 	def __repr__(self):
