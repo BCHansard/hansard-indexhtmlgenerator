@@ -8,6 +8,9 @@ import sys
 import uuid
 import json
 
+from urllib.parse import quote
+
+from datetime import datetime
 from lxml import etree
 
 def load_pagemap():
@@ -19,10 +22,24 @@ def load_pagemap():
 	path = path_defn.group(1)
 
 	for match in re.finditer(r'([0-9]+)-([0-9]+)\s(.*)', data):
+		url = match.group(3).strip()
+		pathmatch = re.search(r'([0-9]{8})([ap])m-Hansard-v([0-9]+)n([0-9]+)', url)
+
+		mdate = datetime.strptime(pathmatch.group(1), '%Y%m%d')
 		ranges.append({
 			'bottom': int(match.group(1)),
 			'top': int(match.group(2)),
-			'path': match.group(3).strip()
+			'path': url,
+			'datestring': quote('%s<br>%s'%(
+				'%s; %s Sitting'%(
+					mdate.strftime('%A, %B %d, %Y'),
+					'Morning' if pathmatch.group(2) == 'a' else 'Afternoon'
+				),
+				'Volume %s, Issue %s'%(
+					pathmatch.group(3), 
+					pathmatch.group(4)
+				)
+			))
 		})
 	return ranges, path
 
@@ -30,8 +47,8 @@ _page_ranges, _path = load_pagemap()
 def get_path_for_page(page_no):
 	for r in _page_ranges:
 		if r['bottom'] <= page_no and r['top'] >= page_no:
-			return '%s%s#%s'%(_path, r['path'], page_no)
-	return None
+			return '%s%s#%s'%(_path, r['path'], page_no), r['datestring']
+	return None, None
 
 def pretty_text(text):
 	if text is None:
@@ -179,9 +196,11 @@ class Locator:
 		self.target = target
 
 	def serialize(self):
+		url, datestring = get_path_for_page(int(self.target.split('-')[0]))
 		return {
 			'target': self.target,
-			'url': get_path_for_page(int(self.target.split('-')[0]))
+			'url': url,
+			'datestring': datestring
 		}
 
 	def __repr__(self):
@@ -293,4 +312,4 @@ if __name__ == '__main__':
 		f.write(jstr)
 
 	with open('a.js', 'w') as f:
-		f.write('var data = ' + jstr)
+		f.write('var indexID = "%s"; var data = %s'%(uuid.uuid4().hex, jstr))

@@ -27,7 +27,7 @@ let templates = {
 			)}
 		</div>,
 	locator: (locator) =>
-		<a class="locator" href={ locator.url }>{ locator.target }</a>,
+		<a class="locator" href={ locator.url } data-string={ locator.datestring }>{ locator.target }</a>,
 	level: (level) => {
 		if (level.filtered){
 			return;
@@ -186,6 +186,8 @@ let templates = {
 
 class IndexController {
 	constructor(data) {
+		this.IeNjoYJAvAScrIpT = false;
+		
 		//	Attach DOM initialization callback.
 		tk.init(() => {
 			this.initDOM();
@@ -197,7 +199,9 @@ class IndexController {
 		this.contentNoFilter = null;
 		this.re = null;
 		this.currentSearchTimeout = null;
+
 		this.highWater = 60;
+		this.storageKey = 'lhis_' + indexID;
 
 		this.expandAll = false;
 		
@@ -209,24 +213,7 @@ class IndexController {
 		this.searchHits = [];
 		this.searchI = 0;
 
-		tk.listener(this.pinned)
-			.added((item) => {
-				let rendered = tk.template(templates.pinnedItem)
-					.data(item)
-					.render()
-						.children('a')
-						.on('click', (el, event) => {
-							event.preventDefault();
-							tk('[name="term"]').value('');
-							this.filter('');
-							this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
-						})
-					.back();
-				this.pinMap[item.id] = true;
-				this.savePins();
-				tk('.pinned-header .list').append(rendered);
-				tk('.pinned-header').classify('empty', false);
-			});
+		this.loadedState = null;
 	}
 
 	scrollTo(target) {
@@ -235,10 +222,27 @@ class IndexController {
 			.classify('search-highlight', true, 2000);
 	}
 
-	savePins() {
-		let ids = [];
-		tk.iter(this.pinMap, (k) => { ids.push(k); });
-		tk.log(document.cookie = 'hIndexPins=' + ids.join('&') + ';');
+	saveState() {
+		let state = {
+			pinned: this.pinned,
+			expanded: this.expanded,
+			search: tk('[name="term"]').value(),
+			searchI: this.searchI,
+			lockedHeaders: tk('header').comp((el) => el.is('.lock'))
+		}
+		window.localStorage.setItem(this.storageKey, JSON.stringify(state));
+	}
+
+	loadState() {
+		let state = window.localStorage.getItem(this.storageKey);
+		if (state) {
+			this.loadedState = state = JSON.parse(state);
+			this.pinned = state.pinned;
+			this.expanded = state.expanded;
+			tk('header').iter((el, i) => {
+				el.classify('lock', state.lockedHeaders[i]);
+			});
+		}
 	}
 
 	//	Initialization.
@@ -246,11 +250,15 @@ class IndexController {
 		tk('body').append(
 			tk.template(templates.root).data(this.data).render()
 		);
+		tk(window).on('beforeunload', () => {
+			this.saveState();
+		});
 
 		tk('.nav-header .letter').on('click', (el) => {
 			this.scrollTo(tk('[data-letter="' + el.text() + '"]'));
 		});
 		
+		this.loadState();
 		this.render();
 
 		let onSearch = (el) => {
@@ -267,7 +275,7 @@ class IndexController {
 			}
 		}
 		
-		tk('[name=term]').on({
+		let searchEl = tk('[name=term]').on({
 			keyup: onSearch,
 			focus: (el) => {
 				el.parents('header').classify('lock');
@@ -278,6 +286,9 @@ class IndexController {
 				}
 			}
 		});
+		if (this.loadedState){
+			searchEl.value(this.loadedState.search)
+		}
 
 		tk('.search-header .clear').on('click', () => {
 			let field = tk('[name=term]');
@@ -343,6 +354,28 @@ class IndexController {
 				}
 			}
 		});
+
+		if (this.loadedState){
+			this.filter(this.loadedState.search, this.loadedState.searchI);
+		}
+
+		tk.listener(this.pinned)
+			.added((item) => {
+				let rendered = tk.template(templates.pinnedItem)
+					.data(item)
+					.render()
+						.children('a')
+						.on('click', (el, event) => {
+							event.preventDefault();
+							tk('[name="term"]').value('');
+							this.filter('');
+							this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
+						})
+					.back();
+				this.pinMap[item.id] = true;
+				tk('.pinned-header .list').append(rendered);
+				tk('.pinned-header').classify('empty', false);
+			});
 	}
 
 	updateNav() {
@@ -389,7 +422,7 @@ class IndexController {
 	}
 
 	searchTools() {
-		this.searchI = -1;
+		this.searchI -= 1;
 
 		let toolsEl = tk.template(templates.searchTools)
 			.data(this.searchHits.length)
@@ -433,10 +466,10 @@ class IndexController {
 	}
 
 	//	Realize a filter on term.
-	filter(term) {
+	filter(term, i=0) {
 		this.searchExpanded = {};
 		this.searchHits = [];
-		this.searchI = 0;
+		this.searchI = i;
 		tk('.search-header .search-tools').remove();
 
 		if (term) {
@@ -509,6 +542,28 @@ class IndexController {
 				event.preventDefault();
 				this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 			});
+
+			tk('a.locator').off('click').on((() => {
+				let tooltip = null;
+				return {
+					mouseover: (el, event) => {
+						let pos = el.offset();
+						tooltip = tk.tag('div', {class: 'tooltip'})
+							.html(decodeURIComponent(el.attr('data-string')))
+							.css({
+								top: pos.y,
+								left: pos.x
+							});
+						tk('.index').append(tooltip);
+					},
+					mouseleave: (el, event) => {
+						if (tooltip) {
+							tooltip.remove();
+							tooltip = null;
+						}
+					}
+				}
+			})());
 			
 			tk('.level-1 > .title').off('click').on('click', (el) => {
 				let level = el.parents('.level').first(),

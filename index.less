@@ -271,6 +271,17 @@ header {
 	max-width: 800px;
 	margin: 50px auto;
 
+	.tooltip {
+		padding: 5px;
+		border-radius: 5px;
+		line-height: 1.4;
+		background-color: white;
+		transform: translateY(-100%);
+		position: absolute;
+		border: 1px solid @lightgrey;
+		.boxShadow();
+	}
+
 	.right * {
 		pointer-events: none;
 	}
@@ -392,7 +403,7 @@ header {
 
 		.locator {
 			&:nth-child(2) {
-				padding-left: 10px;
+				margin-left: 10px;
 			}
 
 			.charSeperated(';');
