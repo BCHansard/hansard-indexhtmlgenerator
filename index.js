@@ -16,18 +16,7 @@ same delays on all ctx menus.
 
 window.tk = toolkit.create({ debug: true });
 var storage = window.localStorage || { getItem: function getItem() {}, setItem: function setItem() {} };
-tk.init(function () {
-	var log = tk('body').append(tk.tag('div'));
-	console.log = function () {
-		for (var _len = arguments.length, a = Array(_len), _key = 0; _key < _len; _key++) {
-			a[_key] = arguments[_key];
-		}
 
-		return log.append(tk.comp(a, function (s) {
-			return tk.tag('div', null, s);
-		}));
-	};
-});
 var templates = {
 	xref: function xref(item) {
 		if (item.target) {
@@ -365,6 +354,7 @@ var IndexController = function () {
 		this.contentNoFilter = null;
 		this.re = null;
 		this.currentSearchTimeout = null;
+		this.scrollLock = null;
 
 		this.highWater = 60;
 		this.storageKey = 'lhis_' + indexID;
@@ -538,7 +528,7 @@ var IndexController = function () {
 				var rendered = tk.template(templates.pinnedItem).data(item).render().children('a').on('click', function (el, event) {
 					event.preventDefault();
 					tk('[name="term"]').value('');
-					_this2.filter('');
+					//this.filter('');
 					_this2.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 				}).back();
 				_this2.pinMap[item.id] = true;
@@ -549,9 +539,16 @@ var IndexController = function () {
 	}, {
 		key: 'updateNav',
 		value: function updateNav() {
-			var y = window.scrollY + this.highWater;
+			var _this3 = this;
+
+			if (this.scrollLock) {
+				return;
+			}
+			this.scrollLock = true;
+
+			var y = window.pageYOffset + this.highWater;
 			var cur = null;
-			tk('.letter').iter(function (el) {
+			tk('.content .letter').iter(function (el) {
 				if (el.offset().y > y) {
 					return false;
 				} else {
@@ -561,39 +558,37 @@ var IndexController = function () {
 
 			tk('.nav-header .letter').classify({
 				current: false,
-				show: false,
-				prev: false,
-				next: false
+				show: false
 			}).iter(function (el) {
-				if (el.text() == cur) {
-					el.classify({
-						current: true,
-						show: true
-					});
-					var prev = el.prev(),
-					    next = el.next();
-					if (!prev.empty) {
-						prev.classify({
-							prev: true,
-							show: true
-						});
-					}
-					if (!next.empty) {
-						next.classify({
-							next: true,
-							show: true
-						});
-					}
-					return false;
+				if (el.text() != cur) {
+					return;
 				}
+
+				el.classify({
+					current: true,
+					show: true
+				});
+				var prev = el.prev(),
+				    next = el.next();
+				if (!prev.empty) {
+					prev.classify('show');
+				}
+				if (!next.empty) {
+					next.classify('show');
+				}
+				return false;
+			});
+
+			tk.timeout(500, function () {
+				return _this3.scrollLock = false;
 			});
 		}
 	}, {
 		key: 'searchTools',
 		value: function searchTools() {
-			var _this3 = this;
+			var _this4 = this;
 
-			this.searchI -= 1;
+			this.searchI = 0;
 
 			var toolsEl = tk.template(templates.searchTools).data(this.searchHits.length).render();
 
@@ -601,27 +596,27 @@ var IndexController = function () {
 				if (el.is('.disabled')) {
 					return;
 				}
-				var match = tk(_this3.searchHits[++_this3.searchI].result);
-				tk('.search-tools .results-i').text(_this3.searchI + 1 + '');
-				window.scrollTo(0, match.offset().y - _this3.highWater);
+				var match = tk(_this4.searchHits[++_this4.searchI].result);
+				tk('.search-tools .results-i').text(_this4.searchI + 1 + '');
+				window.scrollTo(0, match.offset().y - _this4.highWater);
 				tk('.search-highlight.current').classify('current', false);
 				match.classify('current');
 
-				tk('.search-tools .next').classify('disabled', _this3.searchI == _this3.searchHits.length - 1);
-				tk('.search-tools .prev').classify('disabled', _this3.searchI == 0);
+				tk('.search-tools .next').classify('disabled', _this4.searchI == _this4.searchHits.length - 1);
+				tk('.search-tools .prev').classify('disabled', _this4.searchI == 0);
 			};
 			var toPrev = function toPrev(el) {
 				if (el.is('.disabled')) {
 					return;
 				}
-				var match = tk(_this3.searchHits[--_this3.searchI].result);
-				tk('.search-tools .results-i').text(_this3.searchI + 1 + '');
-				window.scrollTo(0, match.offset().y - _this3.highWater);
+				var match = tk(_this4.searchHits[--_this4.searchI].result);
+				tk('.search-tools .results-i').text(_this4.searchI + 1 + '');
+				window.scrollTo(0, match.offset().y - _this4.highWater);
 				tk('.search-highlight.current').classify('current', false);
 				match.classify('current');
 
-				tk('.search-tools .next').classify('disabled', _this3.searchI == _this3.searchHits.length - 1);
-				tk('.search-tools .prev').classify('disabled', _this3.searchI == 0);
+				tk('.search-tools .next').classify('disabled', _this4.searchI == _this4.searchHits.length - 1);
+				tk('.search-tools .prev').classify('disabled', _this4.searchI == 0);
 			};
 
 			toolsEl.children('.next').on('click', toNext);
@@ -637,7 +632,7 @@ var IndexController = function () {
 	}, {
 		key: 'filter',
 		value: function filter(term) {
-			var _this4 = this;
+			var _this5 = this;
 
 			var i = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
 
@@ -649,7 +644,7 @@ var IndexController = function () {
 			if (term) {
 				this.re = new RegExp('(.*?)(' + term + ')', 'gi');
 				this.time('Filter', function () {
-					return _this4._filter(_this4.data);
+					return _this5._filter(_this5.data);
 				});
 				this.render(this.data);
 
@@ -668,14 +663,14 @@ var IndexController = function () {
 	}, {
 		key: '_filter',
 		value: function _filter(item) {
-			var _this5 = this;
+			var _this6 = this;
 
 			var force = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
 			var found = false;
 			if (item instanceof Array) {
 				tk.iter(item, function (subitem) {
-					if (_this5._filter(subitem, force)) {
+					if (_this6._filter(subitem, force)) {
 						found = true;
 					}
 				});
@@ -715,10 +710,10 @@ var IndexController = function () {
 	}, {
 		key: 'render',
 		value: function render() {
-			var _this6 = this;
+			var _this7 = this;
 
 			var content = this.time('Render', function () {
-				return _this6.template.render();
+				return _this7.template.render();
 			});
 
 			this.place(content);
@@ -728,7 +723,7 @@ var IndexController = function () {
 			this.time('Binding', function () {
 				tk('a:not(.locator)').off('click').on('click', function (el, event) {
 					event.preventDefault();
-					_this6.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
+					_this7.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 				});
 
 				tk('a.locator').off('click').on(function () {
@@ -757,9 +752,9 @@ var IndexController = function () {
 					    id = level.attr('id');
 					level.classify('closed', 'toggle');
 					if (state) {
-						_this6.expanded[id] = true;
+						_this7.expanded[id] = true;
 					} else {
-						delete _this6.expanded[id];
+						delete _this7.expanded[id];
 					}
 				});
 
@@ -769,7 +764,7 @@ var IndexController = function () {
 						return lel.children('.title').text();
 					});
 					el.parents('.level').first().classify('pinned');
-					_this6.pinned.push({
+					_this7.pinned.push({
 						titles: titles,
 						id: el.parents('[id]').attr('id')
 					});

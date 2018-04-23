@@ -200,6 +200,7 @@ class IndexController {
 		this.contentNoFilter = null;
 		this.re = null;
 		this.currentSearchTimeout = null;
+		this.scrollLock = null;
 
 		this.highWater = 60;
 		this.storageKey = 'lhis_' + indexID;
@@ -369,7 +370,7 @@ class IndexController {
 						.on('click', (el, event) => {
 							event.preventDefault();
 							tk('[name="term"]').value('');
-							this.filter('');
+							//this.filter('');
 							this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 						})
 					.back();
@@ -380,9 +381,14 @@ class IndexController {
 	}
 
 	updateNav() {
-		let y = window.scrollY + this.highWater;
+		if (this.scrollLock){
+			return;
+		}
+		this.scrollLock = true;
+
+		let y = window.pageYOffset + this.highWater;
 		let cur = null;
-		tk('.letter').iter((el) => {
+		tk('.content .letter').iter((el) => {
 			if (el.offset().y > y){
 				return false;
 			}
@@ -390,40 +396,36 @@ class IndexController {
 				cur = el.attr('data-letter');
 			}
 		});
-
+			
 		tk('.nav-header .letter')
 			.classify({
 				current: false,
-				show: false,
-				prev: false,
-				next: false
+				show: false
 			})
-			.iter((el) => {
-				if (el.text() == cur){
-					el.classify({
-						current: true,
-						show: true
-					});
-					let prev = el.prev(), next = el.next();
-					if (!prev.empty){
-						prev.classify({
-							prev: true,
-							show: true
-						});
-					}
-					if (!next.empty){
-						next.classify({
-							next: true,
-							show: true
-						})
-					}
-					return false;
+			.iter(el => {
+				if (el.text() != cur){
+					return;
 				}
+				
+				el.classify({
+					current: true,
+					show: true
+				});
+				let prev = el.prev(), next = el.next();
+				if (!prev.empty){
+					prev.classify('show');
+				}
+				if (!next.empty){
+					next.classify('show');
+				}
+				return false;
 			});
+
+		tk.timeout(500, () => this.scrollLock = false);
 	}
 
 	searchTools() {
-		this.searchI -= 1;
+		this.searchI = 0;
 
 		let toolsEl = tk.template(templates.searchTools)
 			.data(this.searchHits.length)
