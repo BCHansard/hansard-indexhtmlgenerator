@@ -7,6 +7,7 @@ same delays on all ctx menus.
 */
 
 window.tk = toolkit.create({debug: true});
+let storage = window.localStorage || {getItem: () => {}, setItem: () => {}};
 
 let templates = {
 	xref: (item) => {
@@ -155,7 +156,7 @@ let templates = {
 			<a href={ '#' + item.id }>{ () => {
 				let nodes = [];
 				tk.iter(item.titles, (title, k) => {
-					nodes.push(title);
+					nodes.push(<div class="part">{ title }</div>);
 					if (k != item.titles.length - 1) {
 						nodes.push(<i class="fa fa-chevron-right breadcrumb"></i>);
 					}
@@ -230,11 +231,11 @@ class IndexController {
 			searchI: this.searchI,
 			lockedHeaders: tk('header').comp((el) => el.is('.lock'))
 		}
-		window.localStorage.setItem(this.storageKey, JSON.stringify(state));
+		storage.setItem(this.storageKey, JSON.stringify(state));
 	}
 
 	loadState() {
-		let state = window.localStorage.getItem(this.storageKey);
+		let state = storage.getItem(this.storageKey);
 		if (state) {
 			this.loadedState = state = JSON.parse(state);
 			this.pinned = state.pinned;
@@ -275,7 +276,7 @@ class IndexController {
 			}
 		}
 		
-		let searchEl = tk('[name=term]').on({
+		let searchEl = tk('[name="term"]').on({
 			keyup: onSearch,
 			focus: (el) => {
 				el.parents('header').classify('lock');
@@ -291,7 +292,7 @@ class IndexController {
 		}
 
 		tk('.search-header .clear').on('click', () => {
-			let field = tk('[name=term]');
+			let field = tk('[name="term"]');
 			field.value('');
 			onSearch(field);
 		});

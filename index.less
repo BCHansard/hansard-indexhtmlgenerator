@@ -233,8 +233,9 @@ header {
 		}
 
 		.breadcrumb {
-			font-size: 8pt;
-			margin: 5px;
+			font-size: 7pt;
+			margin: 5px 10px;
+			color: @green;
 		}
 
 		.list {
@@ -243,6 +244,19 @@ header {
 
 			.item {
 				margin-bottom: 5px;
+				
+				.part {
+					display: inline-block;
+
+					&:not(:last-child):not(:hover){
+						font-size: 0pt;
+
+						&:after {
+							font-size: 12pt;
+							content: "...";
+						}
+					}
+				}
 
 				a {
 					text-decoration: none;
