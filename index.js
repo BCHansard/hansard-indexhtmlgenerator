@@ -830,4 +830,12 @@ class SearchHeader {
 }
 */
 
-var controller = new IndexController(data);
+var createController = function createController() {
+	var controller = new IndexController(data);
+};
+var waitHook = setInterval(function () {
+	if (data) {
+		createController();
+		clearInterval(waitHook);
+	}
+}, 250);

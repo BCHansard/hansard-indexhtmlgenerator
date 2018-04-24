@@ -647,4 +647,12 @@ class SearchHeader {
 }
 */
 
-let controller = new IndexController(data);
+let createController = () => {
+	let controller = new IndexController(data);
+}
+let waitHook = setInterval(() => {
+	if (data) {
+		createController();
+		clearInterval(waitHook);
+	}
+}, 250);
