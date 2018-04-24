@@ -6,6 +6,21 @@ same delays on all ctx menus.
 
 */
 
+let suckyBrowser = (() => {
+	var ua = window.navigator.userAgent;
+	var msie = ua.indexOf('MSIE ');
+	if (msie > 0) {
+		return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+	}
+  
+	var trident = ua.indexOf('Trident/');
+	if (trident > 0) {
+		var rv = ua.indexOf('rv:');
+		return parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+	}
+	return false;
+})();
+
 window.tk = toolkit.create({debug: true});
 let storage = window.localStorage || {getItem: () => {}, setItem: () => {}};
 
@@ -117,7 +132,7 @@ let templates = {
 			<header class="nav-header" title="Navigation">
 				<i class="fa fa-compass icon" title="Navigation"></i>
 				<div class="content">
-					{ tk.comp(letters, (letter) => <div class="letter">{ letter.letter }</div>) }
+					{ tk.comp(letters, (letter) => letter.filtered ? () => {} : <div class="letter">{ letter.letter }</div>) }
 				</div>
 			</header>
 			<header class="search-header" title="Search">
@@ -158,9 +173,10 @@ let templates = {
 				tk.iter(item.titles, (title, k) => {
 					nodes.push(<div class="part">{ title }</div>);
 					if (k != item.titles.length - 1) {
-						nodes.push(<i class="fa fa-chevron-right breadcrumb"></i>);
+						nodes.push(<i class="fa fa-chevron-right breadcrumb"/>);
 					}
 				});
+				nodes.push(<i class="fa fa-times remove"/>);
 				return nodes;
 			}}</a>
 		</div>,
@@ -182,13 +198,26 @@ let templates = {
 					return <aside><span>No Results</span></aside>
 				}
 			}}
-		</div>
+		</div>,
+	yourBrowserSucks: () =>
+		<header class="browser-upgrade-hint lock">
+			<i class="fa fa-info-circle icon"></i>
+			<div class="content">
+				<h3>Time for an upgrade?</h3>
+				<p>
+					Looks like you're using Internet Explorer. We recommend upgrading
+					to Firefox, Google Chrome, or Edge for a better experience here and around
+					the web.
+				</p>
+				<p class="small">
+					Some features will be limited.
+				</p>
+			</div>
+		</header>
 }
 
 class IndexController {
-	constructor(data) {
-		this.IeNjoYJAvAScrIpT = false;
-		
+	constructor(data) {		
 		this.data = data;
 		this.template = tk.template(templates.content).data(this.data);
 
@@ -211,12 +240,6 @@ class IndexController {
 		this.searchI = 0;
 
 		this.loadedState = null;
-
-		//	Attach DOM initialization callback.
-		tk.init(() => {
-			this.initDOM();
-		});
-
 	}
 
 	scrollTo(target) {
@@ -231,7 +254,8 @@ class IndexController {
 			expanded: this.expanded,
 			search: tk('[name="term"]').value(),
 			searchI: this.searchI,
-			lockedHeaders: tk('header').comp((el) => el.is('.lock'))
+			lockedHeaders: tk('header').comp((el) => el.is('.lock')),
+			scroll: window.pageYOffset
 		}
 		storage.setItem(this.storageKey, JSON.stringify(state));
 	}
@@ -242,6 +266,7 @@ class IndexController {
 			this.loadedState = state = JSON.parse(state);
 			this.pinned = state.pinned;
 			this.expanded = state.expanded;
+			window.pageYOffset = state.scroll;
 			tk('header').iter((el, i) => {
 				el.classify('lock', state.lockedHeaders[i]);
 			});
@@ -374,11 +399,38 @@ class IndexController {
 							//this.filter('');
 							this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 						})
+							.children('.remove')
+							.on('click', (el, event) => {
+								event.stopPropagation();
+								event.preventDefault();
+								let id = el.parents('a').first().attr('href').substring(1);
+								
+								delete this.pinMap[id];
+								tk('[id="' + id + '"]').classify('pinned', false);
+
+								tk.iter(this.pinned, (pinned, k) => {
+									if (pinned.id == id) {
+										this.pinned.splice(k, 1);
+										return false;
+									}
+								});
+							})
+						.back()
 					.back();
 				this.pinMap[item.id] = true;
 				tk('.pinned-header .list').append(rendered);
 				tk('.pinned-header').classify('empty', false);
-			});
+			})
+			.removed((item, k) => {
+				tk('.pinned-header .list .item').ith(k).remove();
+				tk('.pinned-header').classify('empty', this.pinned.length == 0);
+			})
+
+		if (suckyBrowser) {
+			let upgradeHint = tk.template(templates.yourBrowserSucks).render();
+			tk('body').prepend(upgradeHint);
+			tk.timeout(5000, () => upgradeHint.remove());
+		}
 	}
 
 	updateNav() {
@@ -471,6 +523,9 @@ class IndexController {
 
 	//	Realize a filter on term.
 	filter(term, i=0) {
+		if (suckyBrowser && term.length == 1) {
+			return;
+		}
 		this.searchExpanded = {};
 		this.searchHits = [];
 		this.searchI = i;
@@ -649,11 +704,17 @@ class SearchHeader {
 */
 
 let createController = () => {
-	let controller = new IndexController(data);
+	tk('html, body').classify('loading', false);
+	window.controller = new IndexController(data);
+
+	tk.init(() => {
+		controller.initDOM();
+	});
 }
-let waitHook = setInterval(() => {
+let waitHook;
+waitHook = setInterval(() => {
 	if (data) {
-		createController();
 		clearInterval(waitHook);
+		createController();
 	}
 }, 250);

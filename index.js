@@ -14,6 +14,21 @@ same delays on all ctx menus.
 
 */
 
+var suckyBrowser = function () {
+	var ua = window.navigator.userAgent;
+	var msie = ua.indexOf('MSIE ');
+	if (msie > 0) {
+		return parseInt(ua.substring(msie + 5, ua.indexOf('.', msie)), 10);
+	}
+
+	var trident = ua.indexOf('Trident/');
+	if (trident > 0) {
+		var rv = ua.indexOf('rv:');
+		return parseInt(ua.substring(rv + 3, ua.indexOf('.', rv)), 10);
+	}
+	return false;
+}();
+
 window.tk = toolkit.create({ debug: true });
 var storage = window.localStorage || { getItem: function getItem() {}, setItem: function setItem() {} };
 
@@ -200,7 +215,7 @@ var templates = {
 					'div',
 					{ 'class': 'content' },
 					tk.comp(letters, function (letter) {
-						return tk.template.tag(
+						return letter.filtered ? function () {} : tk.template.tag(
 							'div',
 							{ 'class': 'letter' },
 							letter.letter
@@ -283,6 +298,7 @@ var templates = {
 							nodes.push(tk.template.tag('i', { 'class': 'fa fa-chevron-right breadcrumb' }));
 						}
 					});
+					nodes.push(tk.template.tag('i', { 'class': 'fa fa-times remove' }));
 					return nodes;
 				}
 			)
@@ -332,16 +348,38 @@ var templates = {
 				}
 			}
 		);
+	},
+	yourBrowserSucks: function yourBrowserSucks() {
+		return tk.template.tag(
+			'header',
+			{ 'class': 'browser-upgrade-hint lock' },
+			tk.template.tag('i', { 'class': 'fa fa-info-circle icon' }),
+			tk.template.tag(
+				'div',
+				{ 'class': 'content' },
+				tk.template.tag(
+					'h3',
+					null,
+					'Time for an upgrade?'
+				),
+				tk.template.tag(
+					'p',
+					null,
+					'Looks like you\'re using Internet Explorer. We recommend upgrading to Firefox, Google Chrome, or Edge for a better experience here and around the web.'
+				),
+				tk.template.tag(
+					'p',
+					{ 'class': 'small' },
+					'Some features will be limited.'
+				)
+			)
+		);
 	}
 };
 
 var IndexController = function () {
 	function IndexController(data) {
-		var _this = this;
-
 		_classCallCheck(this, IndexController);
-
-		this.IeNjoYJAvAScrIpT = false;
 
 		this.data = data;
 		this.template = tk.template(templates.content).data(this.data);
@@ -365,11 +403,6 @@ var IndexController = function () {
 		this.searchI = 0;
 
 		this.loadedState = null;
-
-		//	Attach DOM initialization callback.
-		tk.init(function () {
-			_this.initDOM();
-		});
 	}
 
 	_createClass(IndexController, [{
@@ -388,7 +421,8 @@ var IndexController = function () {
 				searchI: this.searchI,
 				lockedHeaders: tk('header').comp(function (el) {
 					return el.is('.lock');
-				})
+				}),
+				scroll: window.pageYOffset
 			};
 			storage.setItem(this.storageKey, JSON.stringify(state));
 		}
@@ -400,6 +434,7 @@ var IndexController = function () {
 				this.loadedState = state = JSON.parse(state);
 				this.pinned = state.pinned;
 				this.expanded = state.expanded;
+				window.pageYOffset = state.scroll;
 				tk('header').iter(function (el, i) {
 					el.classify('lock', state.lockedHeaders[i]);
 				});
@@ -411,28 +446,28 @@ var IndexController = function () {
 	}, {
 		key: 'initDOM',
 		value: function initDOM() {
-			var _this2 = this;
+			var _this = this;
 
 			tk('body').append(tk.template(templates.root).data(this.data).render());
 			tk(window).on('beforeunload', function () {
-				_this2.saveState();
+				_this.saveState();
 			});
 
 			tk('.nav-header .letter').on('click', function (el) {
-				_this2.scrollTo(tk('[data-letter="' + el.text() + '"]'));
+				_this.scrollTo(tk('[data-letter="' + el.text() + '"]'));
 			});
 
 			this.loadState();
 			this.render();
 
 			var onSearch = function onSearch(el) {
-				if (_this2.currentSearchTimeout != null) {
-					clearTimeout(_this2.currentSearchTimeout);
-					_this2.currentSearchTimeout = null;
+				if (_this.currentSearchTimeout != null) {
+					clearTimeout(_this.currentSearchTimeout);
+					_this.currentSearchTimeout = null;
 				}
-				_this2.currentSearchTimeout = tk.timeout(200, function () {
-					_this2.filter(el.value());
-					_this2.currentSearchTimeout = null;
+				_this.currentSearchTimeout = tk.timeout(200, function () {
+					_this.filter(el.value());
+					_this.currentSearchTimeout = null;
 				});
 				if (el.first(false) !== document.activeElement) {
 					tk('.search-header').classify('lock', !!el.value());
@@ -489,24 +524,24 @@ var IndexController = function () {
 			});
 
 			tk('.expand-header .icon').on('click', function () {
-				_this2.expandAll = !_this2.expandAll;
-				if (_this2.expandAll) {
+				_this.expandAll = !_this.expandAll;
+				if (_this.expandAll) {
 					tk('.level-1').classify('closed', false);
 				} else {
 					tk('.level-1').classify('closed', function (el) {
 						//	todo isExpanded
 						var id = el.attr('id');
-						return !(_this2.expanded.hasOwnProperty(id) || _this2.searchExpanded.hasOwnProperty(id));
+						return !(_this.expanded.hasOwnProperty(id) || _this.searchExpanded.hasOwnProperty(id));
 					});
 				}
 			});
 
 			tk(window).on({
 				scroll: function scroll() {
-					_this2.updateNav();
+					_this.updateNav();
 				},
 				hashchange: function hashchange() {
-					_this2.scrollTo(tk('[id="' + window.location.hash.substring(1) + '"]'));
+					_this.scrollTo(tk('[id="' + window.location.hash.substring(1) + '"]'));
 				}
 			});
 
@@ -515,7 +550,7 @@ var IndexController = function () {
 					//	You can't simplify this because ID selectors can't start with numbers.
 					var initTarget = tk('[id="' + window.location.hash.substring(1) + '"]');
 					if (!initTarget.empty) {
-						_this2.scrollTo(initTarget);
+						_this.scrollTo(initTarget);
 					}
 				}
 			});
@@ -529,17 +564,42 @@ var IndexController = function () {
 					event.preventDefault();
 					tk('[name="term"]').value('');
 					//this.filter('');
-					_this2.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
-				}).back();
-				_this2.pinMap[item.id] = true;
+					_this.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
+				}).children('.remove').on('click', function (el, event) {
+					event.stopPropagation();
+					event.preventDefault();
+					var id = el.parents('a').first().attr('href').substring(1);
+
+					delete _this.pinMap[id];
+					tk('[id="' + id + '"]').classify('pinned', false);
+
+					tk.iter(_this.pinned, function (pinned, k) {
+						if (pinned.id == id) {
+							_this.pinned.splice(k, 1);
+							return false;
+						}
+					});
+				}).back().back();
+				_this.pinMap[item.id] = true;
 				tk('.pinned-header .list').append(rendered);
 				tk('.pinned-header').classify('empty', false);
+			}).removed(function (item, k) {
+				tk('.pinned-header .list .item').ith(k).remove();
+				tk('.pinned-header').classify('empty', _this.pinned.length == 0);
 			});
+
+			if (suckyBrowser) {
+				var upgradeHint = tk.template(templates.yourBrowserSucks).render();
+				tk('body').prepend(upgradeHint);
+				tk.timeout(5000, function () {
+					return upgradeHint.remove();
+				});
+			}
 		}
 	}, {
 		key: 'updateNav',
 		value: function updateNav() {
-			var _this3 = this;
+			var _this2 = this;
 
 			if (this.scrollLock) {
 				return;
@@ -580,13 +640,13 @@ var IndexController = function () {
 			});
 
 			tk.timeout(500, function () {
-				return _this3.scrollLock = false;
+				return _this2.scrollLock = false;
 			});
 		}
 	}, {
 		key: 'searchTools',
 		value: function searchTools() {
-			var _this4 = this;
+			var _this3 = this;
 
 			this.searchI = 0;
 
@@ -596,27 +656,27 @@ var IndexController = function () {
 				if (el.is('.disabled')) {
 					return;
 				}
-				var match = tk(_this4.searchHits[++_this4.searchI].result);
-				tk('.search-tools .results-i').text(_this4.searchI + 1 + '');
-				window.scrollTo(0, match.offset().y - _this4.highWater);
+				var match = tk(_this3.searchHits[++_this3.searchI].result);
+				tk('.search-tools .results-i').text(_this3.searchI + 1 + '');
+				window.scrollTo(0, match.offset().y - _this3.highWater);
 				tk('.search-highlight.current').classify('current', false);
 				match.classify('current');
 
-				tk('.search-tools .next').classify('disabled', _this4.searchI == _this4.searchHits.length - 1);
-				tk('.search-tools .prev').classify('disabled', _this4.searchI == 0);
+				tk('.search-tools .next').classify('disabled', _this3.searchI == _this3.searchHits.length - 1);
+				tk('.search-tools .prev').classify('disabled', _this3.searchI == 0);
 			};
 			var toPrev = function toPrev(el) {
 				if (el.is('.disabled')) {
 					return;
 				}
-				var match = tk(_this4.searchHits[--_this4.searchI].result);
-				tk('.search-tools .results-i').text(_this4.searchI + 1 + '');
-				window.scrollTo(0, match.offset().y - _this4.highWater);
+				var match = tk(_this3.searchHits[--_this3.searchI].result);
+				tk('.search-tools .results-i').text(_this3.searchI + 1 + '');
+				window.scrollTo(0, match.offset().y - _this3.highWater);
 				tk('.search-highlight.current').classify('current', false);
 				match.classify('current');
 
-				tk('.search-tools .next').classify('disabled', _this4.searchI == _this4.searchHits.length - 1);
-				tk('.search-tools .prev').classify('disabled', _this4.searchI == 0);
+				tk('.search-tools .next').classify('disabled', _this3.searchI == _this3.searchHits.length - 1);
+				tk('.search-tools .prev').classify('disabled', _this3.searchI == 0);
 			};
 
 			toolsEl.children('.next').on('click', toNext);
@@ -632,10 +692,13 @@ var IndexController = function () {
 	}, {
 		key: 'filter',
 		value: function filter(term) {
-			var _this5 = this;
+			var _this4 = this;
 
 			var i = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
 
+			if (suckyBrowser && term.length == 1) {
+				return;
+			}
 			this.searchExpanded = {};
 			this.searchHits = [];
 			this.searchI = i;
@@ -644,7 +707,7 @@ var IndexController = function () {
 			if (term) {
 				this.re = new RegExp('(.*?)(' + term + ')', 'gi');
 				this.time('Filter', function () {
-					return _this5._filter(_this5.data);
+					return _this4._filter(_this4.data);
 				});
 				this.render(this.data);
 
@@ -663,14 +726,14 @@ var IndexController = function () {
 	}, {
 		key: '_filter',
 		value: function _filter(item) {
-			var _this6 = this;
+			var _this5 = this;
 
 			var force = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
 
 			var found = false;
 			if (item instanceof Array) {
 				tk.iter(item, function (subitem) {
-					if (_this6._filter(subitem, force)) {
+					if (_this5._filter(subitem, force)) {
 						found = true;
 					}
 				});
@@ -710,10 +773,10 @@ var IndexController = function () {
 	}, {
 		key: 'render',
 		value: function render() {
-			var _this7 = this;
+			var _this6 = this;
 
 			var content = this.time('Render', function () {
-				return _this7.template.render();
+				return _this6.template.render();
 			});
 
 			this.place(content);
@@ -723,7 +786,7 @@ var IndexController = function () {
 			this.time('Binding', function () {
 				tk('a:not(.locator)').off('click').on('click', function (el, event) {
 					event.preventDefault();
-					_this7.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
+					_this6.scrollTo(tk('[id="' + el.attr('href').substring(1) + '"]'));
 				});
 
 				tk('a.locator').off('click').on(function () {
@@ -752,9 +815,9 @@ var IndexController = function () {
 					    id = level.attr('id');
 					level.classify('closed', 'toggle');
 					if (state) {
-						_this7.expanded[id] = true;
+						_this6.expanded[id] = true;
 					} else {
-						delete _this7.expanded[id];
+						delete _this6.expanded[id];
 					}
 				});
 
@@ -764,7 +827,7 @@ var IndexController = function () {
 						return lel.children('.title').text();
 					});
 					el.parents('.level').first().classify('pinned');
-					_this7.pinned.push({
+					_this6.pinned.push({
 						titles: titles,
 						id: el.parents('[id]').attr('id')
 					});
@@ -831,11 +894,17 @@ class SearchHeader {
 */
 
 var createController = function createController() {
-	var controller = new IndexController(data);
+	tk('html, body').classify('loading', false);
+	window.controller = new IndexController(data);
+
+	tk.init(function () {
+		controller.initDOM();
+	});
 };
-var waitHook = setInterval(function () {
+var waitHook = void 0;
+waitHook = setInterval(function () {
 	if (data) {
-		createController();
 		clearInterval(waitHook);
+		createController();
 	}
 }, 250);

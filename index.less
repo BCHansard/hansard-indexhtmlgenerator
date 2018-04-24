@@ -209,6 +209,34 @@ header {
 		}
 	}
 
+	&.browser-upgrade-hint {
+		left: 0px;
+		display: inline-block;
+		vertical-align: top;
+		width: 30%;
+		max-width: 300px;
+
+		.content {
+			padding-left: 10px;
+			margin-left: 30px;
+			margin-right: 0px;
+		}
+
+		h3 {
+			color: @green;
+			margin-top: 10px;
+		}
+
+		.icon {
+			left: 8px;
+		}
+
+		.small {
+			color: @grey;
+			font-size: 10pt;
+		}
+	}
+
 	&.pinned-header {
 		top: 100px;
 
@@ -243,20 +271,31 @@ header {
 		.list {
 			padding: 2px 10px;
 			margin-right: 5px;
+			text-align: right;
 
 			.item {
 				margin-bottom: 5px;
 				
 				.part {
-					display: inline-block;
+					display: inline-block;	
+				}
 
-					&:not(:last-child):not(:hover){
-						font-size: 0pt;
+				.remove {
+					margin-left: 10px;
+					font-size: 10pt;
+					color: @lightgrey;
+					
+					&:hover {
+						color: @green;
+					}
+				}
 
-						&:after {
-							font-size: 12pt;
-							content: "...";
-						}
+				&:not(:hover) .part:not(:nth-last-child(2)){
+					font-size: 0pt;
+
+					&:after {
+						font-size: 12pt;
+						content: "...";
 					}
 				}
 
@@ -280,6 +319,27 @@ header {
 		right: auto;
 		bottom: 50px;
 		left: 0px;
+	}
+}
+
+html, body {
+	.loader {
+		display: none;
+	}
+
+	&.loading {
+		height: 100%;
+
+		font-size: 20pt;
+		color: @lightgrey;
+		
+		.loader {
+			display: block;
+			text-align: center;
+			position: relative;
+			top: 50%;
+			transform: translateY(-50%);
+		}
 	}
 }
 
