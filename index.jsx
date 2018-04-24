@@ -189,11 +189,6 @@ class IndexController {
 	constructor(data) {
 		this.IeNjoYJAvAScrIpT = false;
 		
-		//	Attach DOM initialization callback.
-		tk.init(() => {
-			this.initDOM();
-		});
-
 		this.data = data;
 		this.template = tk.template(templates.content).data(this.data);
 
@@ -216,6 +211,12 @@ class IndexController {
 		this.searchI = 0;
 
 		this.loadedState = null;
+
+		//	Attach DOM initialization callback.
+		tk.init(() => {
+			this.initDOM();
+		});
+
 	}
 
 	scrollTo(target) {

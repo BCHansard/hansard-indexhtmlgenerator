@@ -343,11 +343,6 @@ var IndexController = function () {
 
 		this.IeNjoYJAvAScrIpT = false;
 
-		//	Attach DOM initialization callback.
-		tk.init(function () {
-			_this.initDOM();
-		});
-
 		this.data = data;
 		this.template = tk.template(templates.content).data(this.data);
 
@@ -370,6 +365,11 @@ var IndexController = function () {
 		this.searchI = 0;
 
 		this.loadedState = null;
+
+		//	Attach DOM initialization callback.
+		tk.init(function () {
+			_this.initDOM();
+		});
 	}
 
 	_createClass(IndexController, [{
