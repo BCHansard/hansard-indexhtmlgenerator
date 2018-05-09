@@ -325,6 +325,7 @@ class IndexController {
 		});
 
 		let closeNavTimeout = null;
+		// Index nav disappear delay
 		tk('.nav-header').on({
 			mouseover: (el) => {
 				if (closeNavTimeout != null){
@@ -340,6 +341,41 @@ class IndexController {
 				});
 			}
 		});
+		
+		// Search menu disappear delay
+		tk('.search-header').on({
+			mouseover: (el) => {
+				if (closeNavTimeout != null){
+					clearTimeout(closeNavTimeout);
+					closeNavTimeout = null;
+				}
+				el.classify('open');
+			},
+			mouseleave: (el) => {
+				let closeNavTimeout = tk.timeout(750, () => {
+					el.classify('open', false);
+					closeNavTimeout = null;
+				});
+			}
+		});
+
+		// Pin menu disappear delay
+		tk('.pinned-header').on({
+			mouseover: (el) => {
+				if (closeNavTimeout != null){
+					clearTimeout(closeNavTimeout);
+					closeNavTimeout = null;
+				}
+				el.classify('open');
+			},
+			mouseleave: (el) => {
+				let closeNavTimeout = tk.timeout(750, () => {
+					el.classify('open', false);
+					closeNavTimeout = null;
+				});
+			}
+		});
+	
 
 		tk('header .icon').on('click', (el) => {
 			el.parents('header').classify('lock', 'toggle');

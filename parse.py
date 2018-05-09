@@ -47,7 +47,9 @@ _page_ranges, _path = load_pagemap()
 def get_path_for_page(page_no):
 	for r in _page_ranges:
 		if r['bottom'] <= page_no and r['top'] >= page_no:
+			
 			return '%s%s#%s'%(_path, r['path'], page_no), r['datestring']
+	
 	return None, None
 
 def pretty_text(text):
@@ -189,16 +191,27 @@ class XRefList:
 
 	def __repr__(self):
 		return f'XRefList: ({self.prefix}) {", ".join([repr(o) for o in self.content])}\n'
-
 class Locator:
 	
 	def __init__(self, target):
 		self.target = target
+		self.count =0
 
 	def serialize(self):
-		url, datestring = get_path_for_page(int(self.target.split('-')[0]))
+		try:	
+			issueNumber = ''
+			url, datestring = get_path_for_page(int(self.target.split('-')[0]))
+			
+		except:
+			issueNumber = self.target.split(':')[0]
+			self.target=self.target[len(issueNumber)+1:]
+			
+			url, datestring = get_path_for_page(int(self.target.split('-')[0]))
+			firstPartUrl = url.split('#')[0]
+			url = firstPartUrl+'#'+issueNumber+':'+self.target
+			
 		return {
-			'target': self.target,
+			'target': str(issueNumber)+':'+str(self.target),
 			'url': url,
 			'datestring': datestring
 		}
