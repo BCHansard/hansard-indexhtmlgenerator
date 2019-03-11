@@ -1,6 +1,7 @@
 node_modules
 env
 .vscode
+*.pyc
 
 # generated files that can be ignored
 index.css

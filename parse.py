@@ -13,6 +13,40 @@ from urllib.parse import quote
 from datetime import datetime
 from lxml import etree
 
+# internal classes
+from models.lettergroup import LetterGroup
+from models.levelgroup import LevelGroup
+from models.xref import XRef
+from models.xreflist import XRefList
+#from models.locator import Locator
+
+class Locator:
+	def __init__(self, target):
+		self.target = target
+		self.count =0
+
+	def serialize(self):
+		try:	
+			issueNumber = ''
+			url, datestring = get_path_for_page(int(self.target.split('-')[0]))
+			
+		except:
+			issueNumber = self.target.split(':')[0]
+			self.target=self.target[len(issueNumber)+1:]
+			
+			url, datestring = get_path_for_page(int(self.target.split('-')[0]))
+			firstPartUrl = url.split('#')[0]
+			url = firstPartUrl+'#'+issueNumber+':'+self.target
+			
+		return {
+			'target': str(issueNumber)+':'+str(self.target),
+			'url': url,
+			'datestring': datestring
+		}
+
+	def __repr__(self):
+		return f'Locator: {self.target}\n'
+
 def load_pagemap():
 	with open('testing/page_map_examples/PageMap2017HOUSE.txt') as f:
 		data = f.read()
@@ -56,168 +90,6 @@ def pretty_text(text):
 	if text is None:
 		return ''
 	return re.sub('\s+', ' ', text).strip()
-
-class LetterGroup:
-	
-	def __init__(self, letter):
-		self.letter = letter
-		self.content = []
-
-	def serialize(self):
-		return {
-			'letter': self.letter,
-			'content': [c.serialize() for c in self.content]
-		}
-
-	def __repr__(self):
-		c = "\n".join(repr(o) for o in self.content)
-		return f'o\tLetter {self.letter}: \n{c}'
-
-class LevelGroup:
-	_created = []
-
-	def __init__(self, level, heading, heading_tag):
-		self.level = level
-		self.heading = heading
-		self.heading_tag = heading_tag
-		self.respondents = False
-		self.xrefs = []
-		self.content = []
-		self.locators = []
-
-		self.id = uuid.uuid4().hex
-
-		self.__class__._created.append(self)
-	
-	def serialize(self):
-		return {
-			'id': self.id,
-			'filter': False,
-			'level': self.level,
-			'heading': self.heading,
-			'heading_type': self.heading_tag,
-			'xrefs': [x.serialize() for x in self.xrefs],
-			'content': [c.serialize() for c in self.content],
-			'locators': [l.serialize() for l in self.locators],
-			'respondents': self.respondents
-		}
-
-	def __repr__(self):
-		tabs = '\t'*(self.level + 1)
-		child_tabs = f'{tabs}\t'
-
-		if self.xrefs:
-			xref_repr = f'x{child_tabs}X-refs:\n{child_tabs}\t' + (f'{child_tabs}\t'.join(repr(o) for o in self.xrefs))
-		else:
-			xref_repr = f'-{child_tabs}[No x-refs]\n'
-
-		if self.locators:
-			locator_repr = f'l{child_tabs}Locators:\n{child_tabs}\t' + (f'{child_tabs}\t'.join(repr(o) for o in self.locators))
-		else:
-			locator_repr = f'-{child_tabs}[No locators]\n'
-
-		if self.content:
-			content_repr = '\n'.join(repr(o) for o in self.content)
-		else:
-			content_repr = f'-{child_tabs}[No content]\n'
-		
-		return f'''
-			|{tabs}Level ({self.level}): {self.heading} ({self.heading_tag})\n{xref_repr}{locator_repr}{content_repr}
-		'''.strip()
-
-class XRef:
-	_created = []
-
-	def __init__(self, label, target, related=None, relation=None):
-		self.label = label
-		self.target = target
-		#
-		#		A <relation=under> <association=B>
-		#
-		self.related = related
-		self.relation = relation
-		self.to_id = None
-
-		self.__class__._created.append(self)
-
-	@classmethod
-	def resolve_all(cls):
-		print(f'Resolving {len(cls._created)} x-refs against {len(LevelGroup._created)} potential targets')
-
-		ordered_targets = sorted(LevelGroup._created, key=lambda o: o.level)
-
-		missed = 0
-		for xref in cls._created:
-			found = None
-			for level in ordered_targets:
-				if level.heading == xref.target:
-					found = level
-					break
-			if not found:
-				missed += 1
-				print(f'Missed target for x-ref {xref.label}')
-			else:
-				xref.to_id = found.id
-
-		print(f'Missed {missed}/{len(cls._created)}')
-
-	def serialize(self):
-		ser = {
-			'label': self.label,
-			'target': self.to_id,
-		}
-		if self.relation is not None:
-			ser['relation'] = self.relation
-
-			if self.related is not None:
-				ser['related'] = self.related.serialize()
-		
-		return ser
-
-	def __repr__(self):
-		return f'XRef -> {self.label} (locked on {self.to_id})\n'
-
-class XRefList:
-	
-	def __init__(self, prefix):
-		self.prefix = prefix
-		self.content = []
-
-	def serialize(self):
-		return {
-			'prefix': self.prefix,
-			'content': [c.serialize() for c in self.content]
-		}
-
-	def __repr__(self):
-		return f'XRefList: ({self.prefix}) {", ".join([repr(o) for o in self.content])}\n'
-class Locator:
-	
-	def __init__(self, target):
-		self.target = target
-		self.count =0
-
-	def serialize(self):
-		try:	
-			issueNumber = ''
-			url, datestring = get_path_for_page(int(self.target.split('-')[0]))
-			
-		except:
-			issueNumber = self.target.split(':')[0]
-			self.target=self.target[len(issueNumber)+1:]
-			
-			url, datestring = get_path_for_page(int(self.target.split('-')[0]))
-			firstPartUrl = url.split('#')[0]
-			url = firstPartUrl+'#'+issueNumber+':'+self.target
-			
-		return {
-			'target': str(issueNumber)+':'+str(self.target),
-			'url': url,
-			'datestring': datestring
-		}
-
-	def __repr__(self):
-		return f'Locator: {self.target}\n'
 
 def parse(filename):
 	root = etree.parse(filename)
