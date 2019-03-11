@@ -1,5 +1,8 @@
 # Indexing Output Generation
 
+## Prerequisites
+*Node, Python*
+
 ## Installing
 ```bash
 # install node packages
