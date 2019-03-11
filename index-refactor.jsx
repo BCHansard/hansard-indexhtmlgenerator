@@ -116,7 +116,7 @@ let indexTemplates = {
                 return tk.template(header.template).render()
             })}
             <div class="page-header">
-				<img class="brand" src="brand.svg"/>
+				<img class="brand" src="../brand.svg"/>
 			</div>
 		</div>
     }

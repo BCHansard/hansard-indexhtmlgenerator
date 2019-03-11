@@ -163,7 +163,7 @@ let templates = {
 				<div class="content"></div>
 			</header>
 			<div class="page-header">
-				<img class="brand" src="brand.svg"/>
+				<img class="brand" src="../brand.svg"/>
 			</div>
 		</div>,
 	pinnedItem: (item) =>

@@ -20,9 +20,12 @@ pip install -r requirements.txt
 ```
 
 ## Running
-```
+```bash
+# eg. python parse.py testing/index_examples/2017SUBJECT-Sample.xml
 python parse.py {filename}
 ```
-Results are generated into a.js , a.json and a.out
 
-View the results in test.html
+## Results
+Results are generated into the output folder as a.js , a.json and a.out
+
+View the results in output/test.html

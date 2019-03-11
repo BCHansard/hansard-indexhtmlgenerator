@@ -14,7 +14,7 @@ from datetime import datetime
 from lxml import etree
 
 def load_pagemap():
-	with open('PageMap2017HOUSE.txt') as f:
+	with open('testing/page_map_examples/PageMap2017HOUSE.txt') as f:
 		data = f.read()
 
 	ranges = []
@@ -316,13 +316,13 @@ def parse(filename):
 		
 if __name__ == '__main__':
 	parsed = parse(sys.argv[1])
-	with open('a.out', 'w') as f:
+	with open('output/a.out', 'w') as f:
 		f.writelines([repr(o) + '\n' for o in parsed])
 
 	jstr = json.dumps([l.serialize() for l in parsed])#, indent=4).replace('    ', '\t')
 
-	with open('a.json', 'w') as f:
+	with open('output/a.json', 'w') as f:
 		f.write(jstr)
 
-	with open('a.js', 'w') as f:
+	with open('output/a.js', 'w') as f:
 		f.write('var indexID = "%s"; var data = %s'%(uuid.uuid4().hex, jstr))
