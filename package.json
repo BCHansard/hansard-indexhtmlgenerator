@@ -1,0 +1,22 @@
+{
+  "name": "outputgeneration",
+  "version": "1.0.0",
+  "description": "Packages for output generation project.",
+  "dependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-core": "^6.26.3",
+    "babel-plugin-transform-react-jsx": "^6.24.1",
+    "babel-preset-es2015": "^6.24.1",
+    "less": "^3.9.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://pstobbe@nettle:7990/scm/in/outputgeneration.git"
+  },
+  "author": "",
+  "license": "ISC"
+}
