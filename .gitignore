@@ -1,10 +1,10 @@
 node_modules
+env
+.vscode
+
+# generated files that can be ignored
 index.css
 index.js
 a.js
 a.out
 a.json
-
-env
-
-.vscode
