@@ -18,7 +18,6 @@ from models.lettergroup import LetterGroup
 from models.levelgroup import LevelGroup
 from models.xref import XRef
 from models.xreflist import XRefList
-#from models.locator import Locator
 
 class Locator:
 	def __init__(self, target):
